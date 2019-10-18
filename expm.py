@@ -12,7 +12,7 @@ def scale_square(X, exp):
     """
     norm = X.norm()
     if norm < .5:
-        return X
+        return exp(X)
 
     k = int(np.ceil(np.log2(float(norm)))) + 1
     B = X * (2.**-k)
