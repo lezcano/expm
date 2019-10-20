@@ -9,12 +9,15 @@ DEBUG = False
 def scale_square(X, exp):
     """
     Scale-squaring trick
+    Note: This is for just for testing. Apparently, differentiating the scale_squaring trick
+            gives a good approximation to the derivative of the exponential (I have not proved this tho)
     """
     norm = X.norm()
-    if norm < .5:
+    if norm < 1./32.:
         return exp(X)
 
-    k = int(np.ceil(np.log2(float(norm)))) + 1
+    # The + 5 makes the norm be less or equal 1/32, small enough so that it is very accurate
+    k = int(np.ceil(np.log2(float(norm)))) + 5
     B = X * (2.**-k)
     E = exp(B)
     for _ in range(k):
@@ -22,7 +25,7 @@ def scale_square(X, exp):
     return E
 
 
-def taylor(X, n=20):
+def taylor(X, n=30):
     n = X.size(0)
     Id = torch.eye(n, dtype=X.dtype, device=X.device)
     coeff = [Id, X]
@@ -40,51 +43,26 @@ def expm_frechet(A, E, expm):
 
 class expm_class(torch.autograd.Function):
     @staticmethod
-    def _expm(A):
+    def _expm_func(A):
         if A.element_size() > 4:
-            print("expm 64")
-            expm = expm64
+            return expm64
         else:
-            print("expm 32")
-            expm = expm32
-        return expm(A)
+            return expm32
 
     @staticmethod
     def _expm_frechet(A, E):
-        if A.element_size() > 4:
-            print("Frechet 64")
-            expm = expm64
-        else:
-            print("Frechet 32")
-            expm = expm32
-        return expm_frechet(A, E, expm)
+        return expm_frechet(A, E, expm_class._expm_func(A))
 
     @staticmethod
     def forward(ctx, A):
-        B = expm_class._expm(A)
-        ctx.save_for_backward(A, B)
-        return B
+        ctx.save_for_backward(A)
+        expm = expm_class._expm_func(A)
+        return expm(A)
 
     @staticmethod
     def backward(ctx, G):
-        A, B = ctx.saved_tensors
-        #if False:
-        if torch.norm(A + A.t()) < 1e-7 and not DEBUG:
-            print("Skew")
-            # Optimise for skew-symmetric matrices
-            def skew(X):
-                return .5 * (X - X.t())
-            grad = skew(B.t().matmul(G))
-            out = B.matmul(expm_class._expm_frechet(-A, grad))
-            # correct precission errors
-            return skew(out)
-        else:
-            print("No Skew")
-            Bt = B.t()
-            grad = Bt.mm(G)
-            dexp = expm_class._expm_frechet(A.t(), grad)
-            # Compute (B^t)^{-1} * dexp
-            return torch.solve(dexp, Bt).solution
+        (A,) = ctx.saved_tensors
+        return expm_class._expm_frechet(A.t(), G)
 
 expm = expm_class.apply
 
@@ -108,27 +86,20 @@ def ret(A, B, E):
     return torch.autograd.grad([B], A, grad_outputs=(E,))[0]
 
 # Test gradients with some random 32-bit vectors
-print(ret(A, B, E))
+ret1 = ret(A, B, E)
+print(ret1)
 
 # Test gradients with the 64 bit algorithm
 A = A.double()
 E = E.double()
 B = expm(A)
-print(ret(A, B, E))
-
-
-# Test gradients with the 64 bit algorithm with a skew-symmetric matrix
-# Rerun this same code with DEBUG = True (flag at the top of the script)
-# ret1 should be the same with DEBUG = True and DEBUG = False
-Aaux = .5 * (A - A.t())
-E = E
-B = expm(Aaux)
-ret1 = ret(A, B, E)
-print(ret1)
-
-# Taylor + scale square should give us a quite decent approximation of the gradients
-Aaux = .5 * (A - A.t())
-B = scale_square(Aaux, taylor)
 ret2 = ret(A, B, E)
 print(ret2)
-print(torch.norm(ret2-ret1).item())
+
+B = scale_square(A, taylor)
+ret3 = ret(A, B, E)
+print(ret3)
+print(torch.norm(ret1-ret2.float()))
+print(torch.norm(ret1-ret3.float()))
+print(torch.norm(ret2-ret3))
+
