@@ -4,34 +4,6 @@ import numpy as np
 from expm32 import expm32
 from expm64 import expm64
 
-DEBUG = False
-
-def scale_square(X, exp):
-    """
-    Scale-squaring trick
-    Note: This is for just for testing. Apparently, differentiating the scale_squaring trick
-            gives a good approximation to the derivative of the exponential (I have not proved this tho)
-    """
-    norm = X.norm()
-    if norm < 1./32.:
-        return exp(X)
-
-    # The + 5 makes the norm be less or equal 1/32, small enough so that it is very accurate
-    k = int(np.ceil(np.log2(float(norm)))) + 5
-    B = X * (2.**-k)
-    E = exp(B)
-    for _ in range(k):
-        E = torch.mm(E, E)
-    return E
-
-
-def taylor(X, n=30):
-    n = X.size(0)
-    Id = torch.eye(n, dtype=X.dtype, device=X.device)
-    coeff = [Id, X]
-    for i in range(2, n):
-        coeff.append(coeff[-1].mm(X) / i)
-    return sum(coeff)
 
 def expm_frechet(A, E, expm):
     n = A.size(0)
@@ -68,7 +40,37 @@ expm = expm_class.apply
 
 
 
-# Some very basic tests
+#######################################
+#        Some very basic tests        #
+#######################################
+
+def scale_square(X, exp):
+    """
+    Scale-squaring trick
+    Note: This is for just for testing. Apparently, differentiating the scale_squaring trick
+            gives a good approximation to the derivative of the exponential (I have not proved this tho)
+    """
+    norm = X.norm()
+    if norm < 1./32.:
+        return exp(X)
+
+    # The + 5 makes the norm be less or equal 1/32, small enough so that it is very accurate
+    k = int(np.ceil(np.log2(float(norm)))) + 5
+    B = X * (2.**-k)
+    E = exp(B)
+    for _ in range(k):
+        E = torch.mm(E, E)
+    return E
+
+
+def taylor(X, n=30):
+    n = X.size(0)
+    Id = torch.eye(n, dtype=X.dtype, device=X.device)
+    coeff = [Id, X]
+    for i in range(2, n):
+        coeff.append(coeff[-1].mm(X) / i)
+    return sum(coeff)
+
 A = torch.rand(5, 5, requires_grad=True)
 A = torch.tensor([[0.2438, 0.3366, 0.6083, 0.4208, 0.2997],
                   [0.4911, 0.9196, 0.7790, 0.6629, 0.9682],
@@ -92,13 +94,12 @@ print(ret1)
 # Test gradients with the 64 bit algorithm
 A = A.double()
 E = E.double()
-B = expm(A)
 ret2 = ret(A, B, E)
-print(ret2)
 
+# Compare against the gradients from differentiating the taylor expansion + scale & square
 B = scale_square(A, taylor)
 ret3 = ret(A, B, E)
-print(ret3)
+
 print(torch.norm(ret1-ret2.float()))
 print(torch.norm(ret1-ret3.float()))
 print(torch.norm(ret2-ret3))
