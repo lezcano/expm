@@ -3,6 +3,7 @@ import numpy as np
 
 from expm32 import expm32
 from expm64 import expm64
+from expm_taylor import expm_taylor as expm_taylor_forward
 
 
 def expm_frechet(A, E, expm):
@@ -13,6 +14,7 @@ def expm_frechet(A, E, expm):
     M[:n, n:] = E
     return expm(M)[:n, n:]
 
+
 class expm_class(torch.autograd.Function):
     @staticmethod
     def _expm_func(A):
@@ -20,10 +22,6 @@ class expm_class(torch.autograd.Function):
             return expm64
         else:
             return expm32
-
-    @staticmethod
-    def _expm_frechet(A, E):
-        return expm_frechet(A, E, expm_class._expm_func(A))
 
     @staticmethod
     def forward(ctx, A):
@@ -34,8 +32,23 @@ class expm_class(torch.autograd.Function):
     @staticmethod
     def backward(ctx, G):
         (A,) = ctx.saved_tensors
-        return expm_class._expm_frechet(A.t(), G)
+        expm = expm_class._expm_func(A)
+        return expm_frechet(A.t(), G, expm)
 
+
+class expm_taylor_class(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, A):
+        ctx.save_for_backward(A)
+        return expm_taylor_forward(A)
+
+    @staticmethod
+    def backward(ctx, G):
+        (A,) = ctx.saved_tensors
+        return expm_frechet(A.t(), G, expm_taylor_forward)
+
+
+expm_taylor = expm_taylor_class.apply
 expm = expm_class.apply
 
 
@@ -77,7 +90,6 @@ A = torch.tensor([[0.2438, 0.3366, 0.6083, 0.4208, 0.2997],
                   [0.4104, 0.3005, 0.1019, 0.9837, 0.2015],
                   [0.6454, 0.6973, 0.7667, 0.6931, 0.2697],
                   [0.9324, 0.4042, 0.8409, 0.7221, 0.7703]], requires_grad=True)
-B = expm(A)
 E = torch.tensor([[0.3891, 0.1785, 0.9886, 0.8972, 0.6448],
                   [0.9298, 0.3912, 0.9970, 0.2925, 0.2157],
                   [0.1791, 0.0150, 0.5072, 0.5781, 0.0153],
@@ -88,11 +100,12 @@ def ret(A, B, E):
     return torch.autograd.grad([B], A, grad_outputs=(E,))[0]
 
 # Test gradients with some random 32-bit vectors
+B = expm(A)
 ret1 = ret(A, B, E)
-print(ret1)
 
 # Test gradients with the 64 bit algorithm
 A = A.double()
+B = expm(A)
 E = E.double()
 ret2 = ret(A, B, E)
 
@@ -100,7 +113,17 @@ ret2 = ret(A, B, E)
 B = scale_square(A, taylor)
 ret3 = ret(A, B, E)
 
+B = expm_taylor(A)
+ret4 = ret(A, B, E)
+
+
 print(torch.norm(ret1-ret2.float()))
 print(torch.norm(ret1-ret3.float()))
 print(torch.norm(ret2-ret3))
+
+print("Taylor")
+print(torch.norm(ret1-ret4.float()))
+print(torch.norm(ret2-ret4))
+print(torch.norm(ret3-ret4))
+
 
