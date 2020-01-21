@@ -57,6 +57,7 @@ expm = expm_class.apply
 #        Some very basic tests        #
 #######################################
 
+# Basic naïve implementation that about works
 def scale_square(X, exp):
     """
     Scale-squaring trick
