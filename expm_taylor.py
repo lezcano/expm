@@ -101,7 +101,7 @@ def taylor_approx(A, deg):
         # Matrix products
         A4 = A2*(a1*A + a2*A2)
         A8 = (x3*A2 + A4)*(c0*I + c1*A + c2*A2 + c4*A4)
-        return I + A + u2*A2 + + A8
+        return I + A + u2*A2 + A8
     elif deg == 12:
         b = torch.tensor(
 		[[-1.86023205146205530824e-02,
