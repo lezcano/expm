@@ -48,7 +48,7 @@ def matrix_power_two_batch(A, k):
     ksorted, idx = torch.sort(k)
     # Abusing bincount...
     count = torch.bincount(ksorted)
-    nonzero = torch.nonzero(count)
+    nonzero = torch.nonzero(count, as_tuple=False)
     A = torch.matrix_power(A, 2**ksorted[0])
     last = ksorted[0]
     processed = count[nonzero[0]]
