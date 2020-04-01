@@ -11,4 +11,6 @@ The Taylor implementation should run faster in GPU, as it does not require of a 
 
 The Taylor implementation supports batches of square matrices of shape `(*, n ,n)`.
 
-The Taylor implementation is done entirely in Pytorch. The Pade implementation requires Scipy.
+The Taylor implementation is done entirely in Pytorch.
+
+The Pade implementation requires Scipy. It is itself an adaptation of the implementation of `expm` in Scipy.
