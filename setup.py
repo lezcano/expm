@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="pytorch-expm-Lezcano", # Replace with your own username
+    name="pytorch-expm", # Replace with your own username
     version="0.0.1",
     author="Mario Lezcano-Casado",
     author_email="mario.lezcanocasado@maths.ox.ac.uk",
