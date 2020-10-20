@@ -2,7 +2,7 @@
 
 https://pytorch.org/docs/master/generated/torch.matrix_exp.html?highlight=matrix_exp#torch.matrix_exp
 
-## Use the PyTorch native implementation rather than this one in your project if you can, as it is faster
+## Use the PyTorch native implementation rather than this one in your project if you can as it is faster
 
 Two differentiable implementations of the exponential of matrices in Pytorch.
 
