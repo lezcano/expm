@@ -1,3 +1,9 @@
+# As of PyTorch 1.7.0, the matrix exponential is supported natively by PyTorch under the name `matrix_exp`
+
+https://pytorch.org/docs/master/generated/torch.matrix_exp.html?highlight=matrix_exp#torch.matrix_exp
+
+## Use the PyTorch native implementation rather than this one in your project if you can, as it is faster
+
 Two differentiable implementations of the exponential of matrices in Pytorch.
 
 They implement the papers:
